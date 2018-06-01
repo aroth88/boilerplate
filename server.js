@@ -3,7 +3,7 @@ const express = require('express');
 const morgan = require('morgan');
 const bodyParser = require('body-parser');
 const session = require('express-session');
-const db = require('./db');
+const {db, User} = require('./db');
 const passport = require('passport');
 
 const SequelizeStore = require('connect-session-sequelize')(session.Store);
@@ -51,6 +51,51 @@ app.use(session({
 // (However, if you have middleware to serve up 404s, that go would before this as well)
 app.use('/api', require('./api')); // matches all requests to /api
 
+app.post('/login', (req, res, next) => {
+    const email = req.body.email;
+    const password = req.body.password;
+    User.findOne({
+        where: {
+            email
+        }
+    })
+    .then(user => {
+        if (!user) {
+            res.status(401).send('email or password doesn\'t match')
+        } 
+        else if (!user.hasMatchingPassword(password)) {
+            res.status(401).send('Incorrect password');
+        }
+      else {
+        req.login(user, err => {
+          if (err) next(err);
+          else res.json(user);
+        });
+      }
+    })
+    .catch(next);
+});
+
+app.post('/signup', (req, res, next) => {
+    User.create(req.body)
+    .then(user => {
+        req.login(user, err => {
+            if (err) next(err);
+            else res.json(user);
+        })
+    })
+    .catch(next);
+});
+
+app.post('/logout', (req, res, next) => {
+    req.logout();
+    res.sendStatus(200);
+});
+
+app.get('/me', (req, res, next) => {
+    res.json(req.user);
+});
+ 
 app.get('*', function (req, res, next) {
   res.sendFile(path.join(__dirname, './public/index.html'));
 });
