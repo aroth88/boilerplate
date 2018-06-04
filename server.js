@@ -5,6 +5,8 @@ const bodyParser = require('body-parser');
 const session = require('express-session');
 const {db, User} = require('./db');
 const passport = require('passport');
+const strategy = require('./googleStratgey');
+// const cors  = require('cors');
 
 const SequelizeStore = require('connect-session-sequelize')(session.Store);
 const dbStore = new SequelizeStore({db:db});
@@ -18,7 +20,8 @@ app.use(morgan('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 // you'll of course want static middleware so your browser can request things like your 'bundle.js'
-app.use(express.static(path.join(__dirname, './public')))
+app.use(express.static(path.join(__dirname, './public')));
+// app.use(cors);
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -37,6 +40,7 @@ passport.serializeUser((user, done) => {
       .then(user => done(null, user))
       .catch(done);
 });
+passport.use(strategy);
 
 
 // Any routes or other various middlewares should go here!
@@ -52,6 +56,7 @@ app.use(session({
 app.use('/api', require('./api')); // matches all requests to /api
 
 app.post('/login', (req, res, next) => {
+    console.log(req.body)
     const email = req.body.email;
     const password = req.body.password;
     User.findOne({
@@ -63,7 +68,7 @@ app.post('/login', (req, res, next) => {
         if (!user) {
             res.status(401).send('email or password doesn\'t match')
         } 
-        else if (!user.hasMatchingPassword(password)) {
+        else if (!user.correctPassword(password)) {
             res.status(401).send('Incorrect password');
         }
       else {
@@ -96,9 +101,12 @@ app.get('/me', (req, res, next) => {
     res.json(req.user);
 });
  
-app.get('*', function (req, res, next) {
-  res.sendFile(path.join(__dirname, './public/index.html'));
-});
+app.get('/auth/google', passport.authenticate('google', { scope: 'email' }));
+
+app.get('/auth/google/callback', passport.authenticate('google', {
+    successRedirect: '/',
+    failureRedirect: '/login'
+}));
 
 app.get('*', function (req, res, next) {
     res.sendFile(path.join(__dirname, './public/index.html'));
@@ -110,6 +118,7 @@ app.use(function (err, req, res, next) {
     console.error(err.stack);
     res.status(err.status || 500).send(err.message || 'Internal server error.');
 });
+
 
 
 

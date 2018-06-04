@@ -36,6 +36,9 @@ const db = new Sequelize(process.env.DATABASE_URL || `postgres://localhost:5432/
     },
     salt: {
         type: Sequelize.STRING
+    },
+    google_id: {
+        type: Sequelize.STRING
     }
   }, {
       hooks: {
@@ -45,7 +48,7 @@ const db = new Sequelize(process.env.DATABASE_URL || `postgres://localhost:5432/
   });
 
   User.prototype.correctPassword = function(enteredPassword) {
-      return this.Model.encryptPassword(enteredPassword, this.salt) === this.password;
+      return User.encryptPassword(enteredPassword, this.salt) === this.password;
   };
 
   User.prototype.sanitize = function() {
